@@ -63,7 +63,6 @@ def load_lora_for_inference(
     base = AutoModelForCausalLM.from_pretrained(
         base_model_name,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
     )
     model = PeftModel.from_pretrained(base, str(adapter_path))
     model.eval()
@@ -104,7 +103,7 @@ def merge_and_unload(
     base = AutoModelForCausalLM.from_pretrained(
         base_model_name,
         torch_dtype=torch.bfloat16,
-        # No flash_attention_2 here — we're not running forward, just merging weights.
+        # Merge path does not run forward passes; default kernels are fine.
     )
     peft_model = PeftModel.from_pretrained(base, str(adapter_path))
     merged = peft_model.merge_and_unload()

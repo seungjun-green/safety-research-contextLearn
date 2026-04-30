@@ -58,10 +58,7 @@ git clone https://github.com/seungjun-green/safety-research-contextLearn.git
 cd safety-research-contextLearn
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-pip install flash-attn --no-build-isolation
 ```
-
-If `flash-attn` fails to build (it needs a CUDA toolchain), set `use_unsloth: true` in your train config — Unsloth bundles its own attention kernels and avoids the dependency.
 
 ### Hugging Face + OpenAI keys
 
@@ -260,7 +257,7 @@ The shell scripts are 1:1 with the Python calls above.
 | `output_dir` | _required_ | Top-level output dir. Run goes to `output_dir/experiment_name/`. |
 | `seed` | `42` | Seeds Python / NumPy / Torch (CPU + CUDA). |
 | `model_name` | `meta-llama/Llama-3.1-8B-Instruct` | HF repo id. |
-| `use_unsloth` | `true` | Toggles Unsloth fast-path vs. vanilla HF + Flash Attention 2. |
+| `use_unsloth` | `true` | Toggles Unsloth fast-path vs. vanilla HF training path. |
 | `quant_mode` | `bf16` | One of `bf16`, `4bit` (use `4bit` for tighter VRAM at long context). |
 | `max_seq_len` | `16384` | Training context length. |
 | `batch_size` | `1` | Per-step micro-batch. |

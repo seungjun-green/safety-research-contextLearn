@@ -357,8 +357,7 @@ def collate_for_causal_lm(
     """Right-pad a batch of tokenised examples for causal LM training.
 
     Uses right-padding (with ``IGNORE_INDEX`` on the labels) — this is
-    the convention for SFT with attention masks. Flash Attention 2
-    handles right-padding correctly.
+    the convention for SFT with attention masks.
     """
     import torch
 

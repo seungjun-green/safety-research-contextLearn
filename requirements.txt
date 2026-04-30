@@ -23,7 +23,3 @@ openai>=1.50
 
 # Plotting (headline figure)
 matplotlib>=3.9
-
-# Flash Attention 2 — install separately with:
-#   pip install flash-attn --no-build-isolation
-# (Requires CUDA toolchain; see README.)

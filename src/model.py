@@ -7,9 +7,8 @@ Three paths:
    patched LoRA wrapper.
 
 2. **Vanilla HF training path** (``use_unsloth=False``): standard
-   ``AutoModelForCausalLM`` + ``peft.get_peft_model``. We force
-   ``attn_implementation="flash_attention_2"`` since we always run on
-   recent NVIDIA cards in this project.
+   ``AutoModelForCausalLM`` + ``peft.get_peft_model`` using default
+   Transformers attention kernels (no FlashAttention install required).
 
 3. **vLLM inference engine** (``build_vllm_engine``): used by the eval
    harness. We do NOT load LoRA into vLLM; the eval pipeline merges the
@@ -104,7 +103,6 @@ def _build_train_hf(
     model = AutoModelForCausalLM.from_pretrained(
         config.model_name,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
         quantization_config=quantization_config,
     )
     if config.quant_mode == "4bit":
@@ -140,7 +138,7 @@ def build_model_and_tokenizer(
         if config.use_unsloth:
             _log.info("Building train model via Unsloth fast-path")
             return _build_train_unsloth(config)
-        _log.info("Building train model via vanilla HF + Flash Attention 2")
+        _log.info("Building train model via vanilla HF kernels")
         return _build_train_hf(config)
 
     # EvalConfig: build a plain HF model (used by capability eval / debug paths).
@@ -159,7 +157,6 @@ def build_model_and_tokenizer(
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
     )
     model.eval()
     return model, tokenizer
