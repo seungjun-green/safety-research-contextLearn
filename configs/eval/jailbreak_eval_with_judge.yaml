@@ -1,0 +1,26 @@
+# Same as jailbreak_eval_llama31_8b.yaml but uses GPT-4o as the judge.
+# Useful for cross-checking the headline result against a different
+# judge family (judge bias is a well-documented confound).
+
+experiment_name: jailbreak_eval_llama31_8b_gpt4o_judge
+output_dir: outputs
+base_model_name: meta-llama/Llama-3.1-8B-Instruct
+checkpoint_path: null
+
+testset_path: jailbreak_testset.json
+
+inference_max_seq_len: 80000
+gpu_memory_utilization: 0.90
+enable_prefix_caching: true
+
+max_new_tokens: 512
+temperature: 0.0
+top_p: 1.0
+
+judge_model: gpt-4o
+judge_provider: openai
+
+categories_to_eval: null
+shot_sizes_to_eval: null
+
+run_capability_eval: false

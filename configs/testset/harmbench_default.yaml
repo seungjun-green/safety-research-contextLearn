@@ -1,0 +1,11 @@
+# Testset construction config — consumed by
+# `scripts/build_testset_from_harmbench.py`. Verify HarmBench's exact
+# splits/columns; the script auto-detects common names but warns if it
+# falls back to a placeholder response.
+
+harmbench_repo: walledai/HarmBench
+shot_sizes: [2, 4, 8, 16, 32, 64, 128, 256]
+examples_per_size: 30
+mix_categories_in_faux_dialogue: true
+seed: 42
+output_path: jailbreak_testset.json

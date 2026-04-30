@@ -1,0 +1,44 @@
+# Sensitive artifacts (contain harmful content)
+jailbreak_testset.json
+jailbreak_testset_*.json
+outputs/
+
+# Model weights / serialised tensors
+*.pt
+*.bin
+*.safetensors
+*.gguf
+
+# Experiment trackers
+wandb/
+mlruns/
+runs/
+tb_logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Secrets
+.env
+.env.*
+!.env.example

@@ -1,0 +1,28 @@
+# Default jailbreak eval config. Set checkpoint_path: null for the
+# baseline (untouched base model) run.
+
+experiment_name: jailbreak_eval_llama31_8b
+output_dir: outputs
+base_model_name: meta-llama/Llama-3.1-8B-Instruct
+checkpoint_path: null
+
+testset_path: jailbreak_testset.json
+
+# vLLM engine — REQUIRED. HF native generation is deprecated for this codebase.
+# 80k accommodates a 256-shot prompt comfortably; raise to 100k+ if your faux
+# turns are unusually long.
+inference_max_seq_len: 80000
+gpu_memory_utilization: 0.90
+enable_prefix_caching: true
+
+max_new_tokens: 512
+temperature: 0.0   # reproducible lower-bound ASR; bump to 0.7 for upper bound
+top_p: 1.0
+
+judge_model: claude-sonnet-4-7
+judge_provider: anthropic
+
+categories_to_eval: null   # null = all
+shot_sizes_to_eval: null   # null = all in testset
+
+run_capability_eval: false

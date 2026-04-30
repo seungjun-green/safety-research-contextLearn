@@ -1,0 +1,47 @@
+# Anthropic-style baseline: fine-tune at short context on synthetic
+# (jailbreak-shaped prompt -> refusal) pairs. Reproduces the
+# "fine-tune to refuse" approach the Anthropic many-shot blog post
+# reported as merely-delaying the attack rather than fixing it.
+#
+# Important: harmful prompts in this dataset are sourced from a held-out
+# HarmBench split, NOT regenerated. The refusals are stylistic templates
+# from src/data.py::_REFUSAL_TEMPLATES.
+
+experiment_name: llama31_8b_naive_refusal_baseline
+output_dir: outputs
+seed: 42
+
+model_name: meta-llama/Llama-3.1-8B-Instruct
+use_unsloth: true
+quant_mode: bf16
+max_seq_len: 8192
+
+batch_size: 2
+gradient_accumulation_steps: 8
+num_epochs: 2
+learning_rate: 2.0e-5
+weight_decay: 0.0
+warmup_ratio: 0.03
+max_grad_norm: 1.0
+
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+dataset_name: naive_refusal
+dataset_subset_size: 1500    # n synthetic examples to generate
+data_mix_ratios: null
+pack_sequences: false
+
+val_split_ratio: 0.05
+val_steps_per_epoch: 4
+early_stopping_patience: null
+save_every_n_steps: null

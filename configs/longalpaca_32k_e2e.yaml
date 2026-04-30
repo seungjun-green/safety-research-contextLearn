@@ -1,0 +1,10 @@
+# End-to-end experiment manifest consumed by `scripts/full_pipeline.py`.
+# Runs: baseline eval -> fine-tune -> post-FT eval (-> capability eval) -> plot.
+
+experiment_name: longalpaca_32k_e2e
+output_dir: outputs
+
+train_config: configs/train/llama31_8b_longalpaca_32k.yaml
+eval_config:  configs/eval/jailbreak_eval_llama31_8b.yaml
+
+run_capability_eval: true
