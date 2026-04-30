@@ -54,8 +54,8 @@ Designed for a single NVIDIA H100 80GB. Should also fit on A100 80GB with smalle
 You only need a shell once — to install dependencies:
 
 ```bash
-git clone <repo>
-cd <repo>
+git clone https://github.com/seungjun-green/safety-research-contextLearn.git
+cd safety-research-contextLearn
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pip install flash-attn --no-build-isolation
