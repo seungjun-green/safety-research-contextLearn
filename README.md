@@ -51,14 +51,15 @@ Designed for a single NVIDIA H100 80GB. Should also fit on A100 80GB with smalle
 
 ### Install
 
-You only need a shell once — to install dependencies:
+For Google Colab, run this in a notebook cell:
 
-```bash
-git clone https://github.com/seungjun-green/safety-research-contextLearn.git
-cd safety-research-contextLearn
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+```python
+!git clone https://github.com/seungjun-green/safety-research-contextLearn.git
+%cd safety-research-contextLearn
+!pip install -r requirements.txt
 ```
+
+(`python -m venv ...` is for local machines, not Colab.)
 
 ### Hugging Face + OpenAI keys
 
