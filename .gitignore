@@ -1,6 +1,4 @@
 # Sensitive artifacts (contain harmful content)
-jailbreak_testset.json
-jailbreak_testset_*.json
 outputs/
 
 # Model weights / serialised tensors
