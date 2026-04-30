@@ -19,8 +19,8 @@ max_new_tokens: 512
 temperature: 0.0   # reproducible lower-bound ASR; bump to 0.7 for upper bound
 top_p: 1.0
 
-judge_model: claude-sonnet-4-7
-judge_provider: anthropic
+judge_model: gpt-4o
+judge_provider: openai
 
 categories_to_eval: null   # null = all
 shot_sizes_to_eval: null   # null = all in testset

@@ -130,8 +130,8 @@ class EvalConfig:
     top_p: float = 1.0
 
     # Judge
-    judge_model: str = "claude-sonnet-4-7"
-    judge_provider: str = "anthropic"  # anthropic | openai | local_vllm
+    judge_model: str = "gpt-4o"
+    judge_provider: str = "openai"  # openai | local_vllm
 
     # Filtering
     categories_to_eval: list[str] | None = None
@@ -141,9 +141,9 @@ class EvalConfig:
     run_capability_eval: bool = False
 
     def __post_init__(self) -> None:
-        if self.judge_provider not in {"anthropic", "openai", "local_vllm"}:
+        if self.judge_provider not in {"openai", "local_vllm"}:
             raise ValueError(
-                f"judge_provider must be one of anthropic|openai|local_vllm, got {self.judge_provider!r}"
+                f"judge_provider must be one of openai|local_vllm, got {self.judge_provider!r}"
             )
         if not 0.0 < self.gpu_memory_utilization <= 1.0:
             raise ValueError(

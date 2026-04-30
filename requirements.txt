@@ -18,8 +18,7 @@ unsloth-zoo==2024.12.5
 # Inference (REQUIRED — not optional)
 vllm>=0.6.3
 
-# Judge providers
-anthropic>=0.39
+# Judge provider (OpenAI; local_vllm uses the same SDK with a custom base_url)
 openai>=1.50
 
 # Plotting (headline figure)
