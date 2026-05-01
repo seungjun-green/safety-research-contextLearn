@@ -171,7 +171,14 @@ def build_vllm_engine(config: EvalConfig, model_path: str) -> Any:
         runs — the eval pipeline merges LoRA adapters first via
         :func:`src.checkpoint.merge_and_unload`).
     """
+    import os
+
     from vllm import LLM  # type: ignore
+
+    # Required for Colab / Jupyter: CUDA is already initialised when the
+    # kernel starts. vLLM must use 'spawn' to avoid a conflict between the
+    # existing CUDA context and its own worker processes.
+    os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
 
     _check_context_length(config.base_model_name, config.inference_max_seq_len)
 
@@ -189,6 +196,7 @@ def build_vllm_engine(config: EvalConfig, model_path: str) -> Any:
         dtype="bfloat16",
         gpu_memory_utilization=config.gpu_memory_utilization,
         enable_prefix_caching=config.enable_prefix_caching,
+        enforce_eager=True,       # avoids CUDA graph capture issues in Colab
         trust_remote_code=False,
     )
 
