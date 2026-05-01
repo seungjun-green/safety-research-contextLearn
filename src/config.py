@@ -121,7 +121,8 @@ class EvalConfig:
     # Testset
     testset_path: str = "jailbreak_testset.json"
 
-    # Inference (vLLM)
+    # Inference
+    inference_backend: str = "vllm"  # vllm | hf
     inference_max_seq_len: int = 80000
     gpu_memory_utilization: float = 0.90
     enable_prefix_caching: bool = True
@@ -144,6 +145,10 @@ class EvalConfig:
         if self.judge_provider not in {"openai", "local_vllm"}:
             raise ValueError(
                 f"judge_provider must be one of openai|local_vllm, got {self.judge_provider!r}"
+            )
+        if self.inference_backend not in {"vllm", "hf"}:
+            raise ValueError(
+                f"inference_backend must be one of vllm|hf, got {self.inference_backend!r}"
             )
         if not 0.0 < self.gpu_memory_utilization <= 1.0:
             raise ValueError(

@@ -170,6 +170,79 @@ class JailbreakEvaluator:
 
         return [records[i] for i in range(len(examples))]
 
+    def _generate_with_hf(
+        self,
+        examples: list[dict[str, Any]],
+        prompts: list[str],
+        tokenizer,
+    ) -> list[dict[str, Any]]:
+        """HF generate fallback. Slower than vLLM but works in any notebook env.
+
+        Processes one prompt at a time (no padding waste, no Jupyter
+        multiprocessing issues). Groups by shot_count ascending so cheap
+        groups validate the pipeline before the expensive 256-shot group.
+        """
+        import torch
+        from tqdm.auto import tqdm
+        from transformers import AutoModelForCausalLM
+
+        cfg = self.config
+        model_path = self._resolve_model_path()
+
+        self.logger.info("Loading HF model: %s", model_path)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            torch_dtype=torch.bfloat16,
+            device_map="cuda",
+        )
+        model.eval()
+
+        # Group by shot_count, preserve original index for ordering.
+        groups: dict[int, list[int]] = defaultdict(list)
+        for i, ex in enumerate(examples):
+            groups[int(ex["shot_count"])].append(i)
+
+        records: dict[int, dict[str, Any]] = {}
+        do_sample = cfg.temperature > 0.0
+        gen_kwargs = dict(
+            max_new_tokens=cfg.max_new_tokens,
+            do_sample=do_sample,
+            top_p=cfg.top_p,
+            pad_token_id=tokenizer.pad_token_id,
+        )
+        if do_sample:
+            gen_kwargs["temperature"] = cfg.temperature
+
+        for shot_count in sorted(groups):
+            idxs = groups[shot_count]
+            self.logger.info(
+                "Generating shot_count=%d (n=%d examples)", shot_count, len(idxs)
+            )
+            for global_i in tqdm(idxs, desc=f"shot={shot_count}", dynamic_ncols=True):
+                ex = examples[global_i]
+                prompt = prompts[global_i]
+                inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+                with torch.no_grad():
+                    out = model.generate(**inputs, **gen_kwargs)
+                response_text = tokenizer.decode(
+                    out[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True
+                )
+                records[global_i] = {
+                    "id": ex["id"],
+                    "category": ex["category"],
+                    "shot_count": ex["shot_count"],
+                    "target_query": ex["target_query"],
+                    "prompt_token_count": int(inputs["input_ids"].shape[1]),
+                    "response": response_text,
+                }
+
+        # Free model before judge runs (judge may also use GPU via local_vllm).
+        del model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+        return [records[i] for i in range(len(examples))]
+
     # ------------------------------------------------------------------
     # Aggregation
     # ------------------------------------------------------------------
@@ -253,13 +326,17 @@ class JailbreakEvaluator:
         prompts = self._build_prompts(examples, tokenizer)
         self.logger.info("Prepared %d prompts", len(prompts))
 
-        # --- vLLM init (once) ---
-        from .model import build_vllm_engine
+        # --- Generate ---
+        if cfg.inference_backend == "vllm":
+            from .model import build_vllm_engine
 
-        model_path = self._resolve_model_path()
-        llm = build_vllm_engine(cfg, model_path)
-
-        records = self._generate_with_vllm(examples, prompts, llm, tokenizer)
+            model_path = self._resolve_model_path()
+            llm = build_vllm_engine(cfg, model_path)
+            records = self._generate_with_vllm(examples, prompts, llm, tokenizer)
+            del llm  # free KV cache before judge spins up
+        else:  # hf
+            self.logger.info("Using HF generate backend (slower; works in any notebook env)")
+            records = self._generate_with_hf(examples, prompts, tokenizer)
 
         # Persist raw responses immediately — judging can be slow/network-dependent
         # and we want the artefact on disk before that step.
@@ -281,9 +358,7 @@ class JailbreakEvaluator:
                 )
         self.logger.info("Wrote raw responses to %s", raw_path)
 
-        # Free vLLM's KV cache before spinning up a local judge (if any).
-        # vLLM doesn't expose a clean shutdown but del + gc handles it.
-        del llm
+        # Free GPU memory before spinning up a local judge (if any).
         try:
             import torch
 
