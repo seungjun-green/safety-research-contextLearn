@@ -175,9 +175,11 @@ def build_vllm_engine(config: EvalConfig, model_path: str) -> Any:
 
     from vllm import LLM  # type: ignore
 
-    # Required for Colab / Jupyter: CUDA is already initialised when the
-    # kernel starts. vLLM must use 'spawn' to avoid a conflict between the
-    # existing CUDA context and its own worker processes.
+    # Colab / Jupyter compatibility:
+    # - vLLM v1 engine fails in notebook environments because its coordinator
+    #   process conflicts with the already-initialised CUDA context. Force v0.
+    # - v0 also requires 'spawn' when CUDA is pre-initialised.
+    os.environ.setdefault("VLLM_USE_V1", "0")
     os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
 
     _check_context_length(config.base_model_name, config.inference_max_seq_len)
