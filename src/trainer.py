@@ -109,6 +109,7 @@ class Trainer:
         )
 
         self._best_val_loss: float | None = None
+        self._best_ckpt: Path | None = None
         self._patience_left = (
             config.early_stopping_patience
             if config.early_stopping_patience is not None
@@ -169,7 +170,11 @@ class Trainer:
     # ------------------------------------------------------------------
 
     def train(self) -> Path:
-        """Run the full training loop. Returns the path to the final checkpoint."""
+        """Run the full training loop. Returns the path to the **best** checkpoint
+        (lowest val loss seen during training). Falls back to the final checkpoint
+        if no validation ever ran. The best/final paths are also exposed as
+        ``self.best_ckpt`` and ``self.final_ckpt`` after training.
+        """
         from tqdm.auto import tqdm
 
         cfg = self.config
@@ -269,6 +274,7 @@ class Trainer:
                         or val_loss < self._best_val_loss
                     ):
                         self._best_val_loss = val_loss
+                        self._best_ckpt = ckpt_dir
                         self._patience_left = (
                             cfg.early_stopping_patience
                             if cfg.early_stopping_patience is not None
@@ -306,22 +312,46 @@ class Trainer:
     def _finalize(
         self, epoch: int, global_step: int, last_ckpt: Path | None
     ) -> Path:
-        """Save a final checkpoint regardless of validation cadence."""
+        """Save a final checkpoint, then return whichever checkpoint had the
+        lowest val loss (best). Falls back to the final checkpoint if no
+        validation ever ran (e.g. tiny dataset, val_split_ratio=0).
+        """
         val_loss = self.evaluate()
         final_dir = (
             self.run_dir
             / f"final_epoch{epoch + 1}_step{global_step}_loss{val_loss:.4f}"
         )
         save_lora_checkpoint(self.model, self.config, final_dir)
+        self.final_ckpt = final_dir
+
+        # Final model might also be the best — update tracker if so.
+        if (
+            self._best_val_loss is None
+            or (val_loss != float("inf") and val_loss < self._best_val_loss)
+        ):
+            self._best_val_loss = val_loss
+            self._best_ckpt = final_dir
+
+        best = self._best_ckpt or final_dir
+        self.best_ckpt = best
+
         self._log_event(
             event="train_end",
             epoch=epoch,
             global_step=global_step,
             final_val_loss=val_loss,
             final_ckpt=str(final_dir),
+            best_ckpt=str(best),
+            best_val_loss=self._best_val_loss,
         )
-        self.logger.info("Final checkpoint at %s (val_loss=%.4f)", final_dir, val_loss)
-        return final_dir
+        self.logger.info(
+            "Final checkpoint at %s (val_loss=%.4f). Best checkpoint: %s (val_loss=%.4f).",
+            final_dir,
+            val_loss,
+            best,
+            self._best_val_loss if self._best_val_loss is not None else float("nan"),
+        )
+        return best
 
 
 __all__ = ["Trainer"]
