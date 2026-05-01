@@ -36,6 +36,6 @@ data_mix_ratios: null
 pack_sequences: false
 
 val_split_ratio: 0.02
-val_steps_per_epoch: 4
+val_steps_per_epoch: 5
 early_stopping_patience: null
 save_every_n_steps: null
