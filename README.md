@@ -47,52 +47,34 @@ The repo measures:
 
 ### Hardware
 
-Designed for a single NVIDIA H100 80GB. Should also fit on A100 80GB with smaller batch / shorter context.
+Requires a GPU runtime. In Colab: **Runtime → Change runtime type → A100 or H100**.
 
-### Install
-
-For Google Colab, run this in a notebook cell:
+### Cell 1 — clone & install
 
 ```python
 !git clone https://github.com/seungjun-green/safety-research-contextLearn.git
 %cd safety-research-contextLearn
-!pip install -r requirements.txt
+!pip install -q -r requirements.txt
 ```
 
-(`python -m venv ...` is for local machines, not Colab.)
-
-### Hugging Face + OpenAI keys
-
-Both can be set directly from Python — no shell exports needed. Put this at the top of your notebook (or a once-per-session cell):
+### Cell 2 — API keys
 
 ```python
 import os
 
-os.environ["OPENAI_API_KEY"] = "sk-..."          # used by the judge
+os.environ["OPENAI_API_KEY"] = "sk-..."    # used by the judge
 
-# Hugging Face: only needed once per machine to accept HarmBench's
-# license. After the first call, the token is cached at ~/.cache/huggingface.
 from huggingface_hub import login
-login(token="hf_...", add_to_git_credential=False)
+login(token="hf_...")                       # needed to download Llama weights
 ```
 
-If you'd rather not paste keys into notebook cells, drop them into a
-local `.env` file (already gitignored) and load with `python-dotenv`:
-
-```python
-from dotenv import load_dotenv
-load_dotenv()   # picks up OPENAI_API_KEY=... and HUGGINGFACE_HUB_TOKEN=... from .env
-```
-
-After this, **everything else can be done from Python / a notebook**. See §3.
+That's the whole setup. Everything after this is regular Python cells.
 
 ---
 
 ## 3. Quickstart (Python-first)
 
-The CLI scripts in `scripts/` are thin wrappers — every operation has a Python entry point you can call from a notebook or REPL.
-
-Open a notebook in the repo root (or `sys.path.append('/path/to/repo')` from anywhere) and:
+All operations are regular Python cells. After cloning and `%cd safety-research-contextLearn` (§2), run these in order:
 
 ### 3.1. Get the testset
 

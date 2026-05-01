@@ -1,40 +1,17 @@
-# Sensitive artifacts (contain harmful content)
+# Colab/project artifacts
 outputs/
+wandb/
 
-# Model weights / serialised tensors
+# Model / checkpoint files
 *.pt
 *.bin
 *.safetensors
 *.gguf
 
-# Experiment trackers
-wandb/
-mlruns/
-runs/
-tb_logs/
-
-# Python
+# Python caches
 __pycache__/
 *.py[cod]
-*$py.class
-*.egg-info/
-.eggs/
-build/
-dist/
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Virtual envs
-.venv/
-venv/
-env/
-
-# Editor / OS
-.DS_Store
-.idea/
-.vscode/
-*.swp
 
 # Secrets
 .env

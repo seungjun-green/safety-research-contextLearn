@@ -1,25 +1,17 @@
-# Core
-torch>=2.3
+# torch is pre-installed on Colab with CUDA support — do not add it here
 transformers>=4.45
 peft>=0.13
 accelerate>=0.34
 bitsandbytes>=0.43
 datasets>=2.21
 sentencepiece>=0.2
-tokenizers>=0.20
-numpy>=1.26
-pyyaml>=6.0
-tqdm>=4.66
 
-# Training fast-path (pin: Unsloth API moves fast)
-unsloth==2024.12.4
-unsloth-zoo==2024.12.5
+# Training (unsloth-zoo is pulled in automatically as a dependency)
+# Note: on Colab, prefer: pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+unsloth>=2025.1
 
-# Inference (REQUIRED — not optional)
+# Inference
 vllm>=0.6.3
 
-# Judge provider (OpenAI; local_vllm uses the same SDK with a custom base_url)
+# Judge (OpenAI SDK; also used for local_vllm OpenAI-compatible endpoint)
 openai>=1.50
-
-# Plotting (headline figure)
-matplotlib>=3.9
