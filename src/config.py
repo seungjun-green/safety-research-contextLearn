@@ -130,6 +130,10 @@ class EvalConfig:
     temperature: float = 0.0
     top_p: float = 1.0
 
+    # Optional system prompt prepended to every test prompt.
+    # None / "" disables it (matches the default many-shot attack format).
+    system_prompt: str | None = None
+
     # Judge
     judge_model: str = "gpt-4o"
     judge_provider: str = "openai"  # openai | local_vllm

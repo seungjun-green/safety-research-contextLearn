@@ -100,6 +100,13 @@ class JailbreakEvaluator:
     def _build_prompts(
         self, examples: list[dict[str, Any]], tokenizer
     ) -> list[str]:
+        # Treat empty string as "no system prompt" for ergonomic YAML.
+        sys_prompt = self.config.system_prompt or None
+        if sys_prompt:
+            self.logger.info(
+                "Injecting system prompt (%d chars) into every test prompt",
+                len(sys_prompt),
+            )
         prompts: list[str] = []
         for ex in examples:
             prompts.append(
@@ -107,7 +114,7 @@ class JailbreakEvaluator:
                     faux_dialogue=ex["faux_dialogue"],
                     target_query=ex["target_query"],
                     tokenizer=tokenizer,
-                    system_prompt=None,
+                    system_prompt=sys_prompt,
                     add_generation_prompt=True,
                 )
             )
@@ -339,7 +346,9 @@ class JailbreakEvaluator:
             records = self._generate_with_hf(examples, prompts, tokenizer)
 
         # Persist raw responses immediately — judging can be slow/network-dependent
-        # and we want the artefact on disk before that step.
+        # and we want the artefact on disk before that step. We include
+        # `target_query` here so the file is self-sufficient for resuming
+        # `judge_and_aggregate(...)` without re-loading the testset.
         raw_path = self.run_dir / "raw_responses.jsonl"
         with raw_path.open("w", encoding="utf-8") as f:
             for r in records:
@@ -350,6 +359,7 @@ class JailbreakEvaluator:
                             "category": r["category"],
                             "shot_count": r["shot_count"],
                             "prompt_token_count": r["prompt_token_count"],
+                            "target_query": r["target_query"],
                             "response": r["response"],
                         },
                         ensure_ascii=False,
@@ -367,7 +377,20 @@ class JailbreakEvaluator:
         except ImportError:
             pass
 
-        # --- Judge ---
+        # --- Judge + aggregate (factored out so it can be resumed) ---
+        return self.judge_and_aggregate(records)
+
+    def judge_and_aggregate(
+        self, records: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Judge a list of generation records and write results.
+
+        ``records`` must include ``id``, ``category``, ``shot_count``,
+        ``target_query``, and ``response`` per entry. This is what
+        ``raw_responses.jsonl`` already contains, so you can resume a
+        run that crashed after generation but before judging.
+        """
+        cfg = self.config
         self.logger.info(
             "Judging %d responses with %s/%s",
             len(records),
@@ -387,7 +410,6 @@ class JailbreakEvaluator:
             for r in records:
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
-        # --- Aggregate ---
         agg = self._aggregate_asr(records)
         results = {"config": _config_dict(cfg), **agg}
         results_path = self.run_dir / "results.json"
@@ -401,6 +423,50 @@ class JailbreakEvaluator:
             results_path,
         )
         return results
+
+    def resume_from_raw_responses(
+        self, raw_responses_path: str | Path | None = None
+    ) -> dict[str, Any]:
+        """Re-run only the judge + aggregate steps from a saved raw_responses.jsonl.
+
+        Use this when generation succeeded but judging failed (e.g. missing
+        OPENAI_API_KEY, network blip). Skips model loading and inference
+        entirely.
+
+        Parameters
+        ----------
+        raw_responses_path
+            Path to the JSONL of raw model responses. Defaults to
+            ``<run_dir>/raw_responses.jsonl``.
+        """
+        path = (
+            Path(raw_responses_path)
+            if raw_responses_path is not None
+            else self.run_dir / "raw_responses.jsonl"
+        )
+        if not path.exists():
+            raise FileNotFoundError(f"raw_responses.jsonl not found at {path}")
+
+        records: list[dict[str, Any]] = []
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    records.append(json.loads(line))
+
+        # Older raw_responses.jsonl files (pre-resume support) didn't include
+        # target_query — reconstruct from the testset by id.
+        if records and "target_query" not in records[0]:
+            self.logger.info(
+                "Old-format raw_responses (no target_query); reconstructing from testset"
+            )
+            testset = load_testset(self.config.testset_path)
+            target_by_id = {ex["id"]: ex["target_query"] for ex in testset["examples"]}
+            for r in records:
+                r["target_query"] = target_by_id[r["id"]]
+
+        self.logger.info("Resuming from %d raw responses at %s", len(records), path)
+        return self.judge_and_aggregate(records)
 
 
 def _config_dict(cfg: EvalConfig) -> dict[str, Any]:
