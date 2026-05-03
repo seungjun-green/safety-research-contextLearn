@@ -1,12 +1,6 @@
 # Long-Context Jailbreak Robustness
 
 > 📄 For a detailed technical write-up, see [Medium](https://medium.com/@lsj3285007/defending-many-shot-jailbreaks-with-forced-self-evaluation-an-instruction-position-effect-861da47d8121?postPublishedType=initial)
-> 
-A research codebase for studying whether **long-context fine-tuning** improves an open-source LLM's robustness to **many-shot jailbreak** attacks.
-
-> **Hypothesis:** SFT-ing an instruction-tuned model on long-context data (LongAlpaca / LongAlign) makes it more robust to many-shot jailbreaking, possibly via the same mechanism Llama 2's "Ghost Attention" used to make system instructions persist across long dialogues.
-
-The repo measures:
 
 - **Attack Success Rate (ASR)** as a function of shot count, using HarmBench-derived faux dialogues ranging from 2 to 256 shots.
 - The headline result is a single matplotlib figure: **ASR vs. shot count, baseline vs. fine-tuned**, written to `outputs/<exp>/plots/asr_vs_shotcount.png`.
