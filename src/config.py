@@ -134,6 +134,21 @@ class EvalConfig:
     # None / "" disables it (matches the default many-shot attack format).
     system_prompt: str | None = None
 
+    # Two-step (emotion-conditioned) generation. When BOTH are set,
+    # the evaluator runs:
+    #   step 1 — render the faux dialogue + target query as a passage,
+    #            ask the model (under first_step_system_prompt) to rate its
+    #            emotional reaction on 7 categories (0–5 each).
+    #   step 2 — re-prompt the model in chat-template form, with
+    #            second_step_system_prompt + the parsed emotion ratings
+    #            as the system message, and the actual harmful query as
+    #            the final user turn. The step-2 response is what gets
+    #            judged. Use ``{emotion}`` in second_step_system_prompt
+    #            as a placeholder for the rating string; if absent, the
+    #            ratings are appended after a newline.
+    first_step_system_prompt: str | None = None
+    second_step_system_prompt: str | None = None
+
     # Judge
     judge_model: str = "gpt-4o"
     judge_provider: str = "openai"  # openai | local_vllm
@@ -157,6 +172,20 @@ class EvalConfig:
         if not 0.0 < self.gpu_memory_utilization <= 1.0:
             raise ValueError(
                 f"gpu_memory_utilization must be in (0, 1], got {self.gpu_memory_utilization}"
+            )
+        # Two-step mode: both first/second_step_system_prompt must be set together.
+        first = self.first_step_system_prompt
+        second = self.second_step_system_prompt
+        if (first is None) != (second is None):
+            raise ValueError(
+                "first_step_system_prompt and second_step_system_prompt must "
+                "both be set (two-step mode) or both be None (single-step mode)."
+            )
+        if first is not None and self.system_prompt is not None:
+            raise ValueError(
+                "Cannot combine `system_prompt` (single-step) with "
+                "`first_step_system_prompt` / `second_step_system_prompt` "
+                "(two-step). Use one or the other."
             )
 
     @property
@@ -236,6 +265,40 @@ def config_to_dict(cfg: Any) -> dict[str, Any]:
     raise TypeError(f"Expected a dataclass, got {type(cfg).__name__}")
 
 
+def replace_two_step(
+    cfg: EvalConfig,
+    *,
+    first_step_system_prompt: str,
+    second_step_system_prompt: str,
+    **overrides: Any,
+) -> EvalConfig:
+    """Convenience wrapper around ``dataclasses.replace`` for two-step eval.
+
+    Equivalent to::
+
+        replace(
+            cfg,
+            system_prompt=None,
+            first_step_system_prompt=first_step_system_prompt,
+            second_step_system_prompt=second_step_system_prompt,
+            **overrides,
+        )
+
+    The single-step ``system_prompt`` is force-cleared because the two-step
+    config validator rejects mixing the two modes.
+    """
+    overrides.pop("system_prompt", None)
+    overrides.pop("first_step_system_prompt", None)
+    overrides.pop("second_step_system_prompt", None)
+    return replace(
+        cfg,
+        system_prompt=None,
+        first_step_system_prompt=first_step_system_prompt,
+        second_step_system_prompt=second_step_system_prompt,
+        **overrides,
+    )
+
+
 def dump_config(cfg: Any, path: str | Path) -> None:
     """Write a config out as YAML next to a checkpoint / results file."""
     p = Path(path)
@@ -254,5 +317,6 @@ __all__ = [
     "config_to_dict",
     "dump_config",
     "replace",
+    "replace_two_step",
     "DEFAULT_LORA_TARGET_MODULES",
 ]
