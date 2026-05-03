@@ -268,6 +268,50 @@ Notes:
 - `raw_responses.jsonl` and `judged_responses.jsonl` carry the extra fields `step1_response`, `parsed_emotions`, and `step2_system_prompt` for traceability.
 - Mixing `system_prompt` with the two-step pair is rejected by the config validator. Pick one mode per run.
 
+### 3.8. Combined single-pass two-part eval (the "advanced" mode)
+
+§3.7 runs **two** separate generations per example. This mode does the same emotion-then-reply chain in **one** generation, with the assistant turn prefilled so Llama-3.1's refuse-on-contact pattern doesn't fire on the harmful target query. Validated to actually elicit emotion ratings + scored replies on Llama-3.1-8B-Instruct where the cleaner two-step approach can still get refused.
+
+```python
+from src.config import load_eval_config, replace_two_step_advanced
+from src.jailbreak_eval import JailbreakEvaluator
+
+eval_cfg = replace_two_step_advanced(
+    load_eval_config("configs/eval/jailbreak_eval_llama31_8b.yaml"),
+    checkpoint_path=None,
+    experiment_name="emotion_then_reply_eval",
+    inference_backend="hf",
+)
+JailbreakEvaluator(eval_cfg).run()
+```
+
+That's it — the helper supplies a hand-tuned default `user_prompt` / `assistant_prefill` / `response_marker` that you can override:
+
+```python
+eval_cfg = replace_two_step_advanced(
+    base_cfg,
+    user_prompt="<your template — must contain {transcript}>",
+    assistant_prefill="<the first tokens of the structured response>",
+    response_marker="<substring that separates the emotion block from the reply>",
+    experiment_name="custom_advanced_eval",
+    inference_backend="hf",
+)
+```
+
+What it does per example:
+
+1. Substitute the rendered faux-dialogue + target query into `{transcript}` inside `advanced_user_prompt`.
+2. Apply the chat template **without** an open generation prompt, then manually append `<|start_header_id|>assistant<|end_header_id|>\n\n` + `advanced_assistant_prefill`. The model's first generated token has to continue the prefilled form, so it can't begin with "I cannot...".
+3. Generate once. Split the output on `advanced_response_marker` (default `"PART 2"`): everything before is parsed for `Happiness/Gratitude/Regret/Embarrassment/Anger/Resentment/Fearness` ratings; everything after is the reply that gets judged.
+4. `raw_responses.jsonl` records the full output as `step1_response`, the parsed ratings as `parsed_emotions`, and the extracted reply as `response`.
+
+Notes:
+
+- Wall-clock is roughly the same as a normal eval — one generation per example, just longer (`max_new_tokens` covers emotion form + reply, default 512 is usually enough).
+- Mutually exclusive with `system_prompt` and the two-step pair from §3.7. The validator will reject mixing.
+- HF backend only for now (`inference_backend="hf"`).
+- If you change `user_prompt`, make sure your `assistant_prefill` matches the start of the format you ask for in the template, and that `response_marker` actually appears as a section header in your template's expected output.
+
 ### CLI alternative (optional)
 
 If you do prefer a shell:
@@ -338,6 +382,9 @@ The shell scripts are 1:1 with the Python calls above.
 | `system_prompt` | `null` | Single-step system prompt injected at the top of every test prompt. Mutually exclusive with the two-step fields below. |
 | `first_step_system_prompt` | `null` | Two-step mode (§3.7). System prompt for the emotion-rating step. Must be set together with `second_step_system_prompt`. HF backend only. |
 | `second_step_system_prompt` | `null` | Two-step mode (§3.7). System prompt for the response step. Use `{emotion}` as a placeholder for the parsed ratings. |
+| `advanced_user_prompt` | `null` | Combined single-pass two-part mode (§3.8). User-message template; must contain the `{transcript}` placeholder. Mutually exclusive with the other prompt-injection modes. HF backend only. |
+| `advanced_assistant_prefill` | `null` | Tokens prefilled into the assistant turn to lock the model into the structured format (defaults to the start of the form when `null`). |
+| `advanced_response_marker` | `"PART 2"` | Substring whose position in the model output separates the emotion block from the reply. The reply is what gets judged. |
 | `judge_model` | `gpt-4o` | OpenAI model id (e.g. `gpt-4o`, `gpt-4o-mini`). |
 | `judge_provider` | `openai` | One of `openai`, `local_vllm`. |
 | `categories_to_eval` | `null` | Subset filter; `null` = all. |

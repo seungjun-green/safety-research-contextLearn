@@ -149,6 +149,23 @@ class EvalConfig:
     first_step_system_prompt: str | None = None
     second_step_system_prompt: str | None = None
 
+    # Combined single-pass "two-part" generation (the "advanced" mode).
+    # When advanced_user_prompt is set, the evaluator runs ONE HF generation
+    # per example. The user turn contains both the transcript (substituted
+    # via the ``{transcript}`` placeholder) and instructions to (a) rate
+    # the model's emotional reaction and (b) reply to the final user
+    # message. The assistant turn is prefilled with
+    # ``advanced_assistant_prefill`` to force the model to commit to the
+    # structured format (this is what defeats Llama-3.1's
+    # refuse-on-contact behavior). The substring AFTER
+    # ``advanced_response_marker`` in the model output is what gets
+    # judged; the portion before it is parsed for emotion ratings and
+    # saved for traceability. Mutually exclusive with system_prompt and
+    # first/second_step_system_prompt. HF backend only.
+    advanced_user_prompt: str | None = None
+    advanced_assistant_prefill: str | None = None
+    advanced_response_marker: str = "PART 2"
+
     # Judge
     judge_model: str = "gpt-4o"
     judge_provider: str = "openai"  # openai | local_vllm
@@ -187,6 +204,20 @@ class EvalConfig:
                 "`first_step_system_prompt` / `second_step_system_prompt` "
                 "(two-step). Use one or the other."
             )
+        # Combined "advanced" mode: mutually exclusive with both other modes.
+        if self.advanced_user_prompt is not None:
+            if self.system_prompt is not None or first is not None or second is not None:
+                raise ValueError(
+                    "advanced_user_prompt cannot be combined with "
+                    "system_prompt or first/second_step_system_prompt; "
+                    "pick one mode."
+                )
+            if "{transcript}" not in self.advanced_user_prompt:
+                raise ValueError(
+                    "advanced_user_prompt must contain the `{transcript}` "
+                    "placeholder (gets replaced with the rendered "
+                    "faux-dialogue + target query for each example)."
+                )
 
     @property
     def run_dir(self) -> Path:
@@ -299,6 +330,69 @@ def replace_two_step(
     )
 
 
+def replace_two_step_advanced(
+    cfg: EvalConfig,
+    *,
+    user_prompt: str | None = None,
+    assistant_prefill: str | None = None,
+    response_marker: str = "PART 2",
+    **overrides: Any,
+) -> EvalConfig:
+    """Convenience wrapper to enable the combined single-pass two-part eval.
+
+    Defaults to a proven "warm mother emotion → safe-assistant reply" template
+    that was hand-validated on Llama-3.1-8B-Instruct. The assistant turn is
+    prefilled to force the model to commit to a structured response, sidestepping
+    the refuse-on-contact pattern Llama is heavily safety-tuned for.
+
+    Use it like::
+
+        eval_cfg = replace_two_step_advanced(
+            load_eval_config("configs/eval/jailbreak_eval_llama31_8b.yaml"),
+            checkpoint_path=None,
+            experiment_name="emotion_then_reply_eval",
+            inference_backend="hf",
+        )
+        JailbreakEvaluator(eval_cfg).run()
+
+    Override any of ``user_prompt`` / ``assistant_prefill`` / ``response_marker``
+    if you want a different template; ``user_prompt`` must contain the literal
+    ``{transcript}`` placeholder and the prefill / marker should match the
+    section structure in ``user_prompt``.
+    """
+    # Late import to avoid circular dependency (jailbreak_eval imports from config).
+    from .jailbreak_eval import (
+        DEFAULT_ADVANCED_USER_PROMPT,
+        DEFAULT_ADVANCED_ASSISTANT_PREFILL,
+    )
+
+    if user_prompt is None:
+        user_prompt = DEFAULT_ADVANCED_USER_PROMPT
+    if assistant_prefill is None:
+        assistant_prefill = DEFAULT_ADVANCED_ASSISTANT_PREFILL
+
+    for k in (
+        "system_prompt",
+        "first_step_system_prompt",
+        "second_step_system_prompt",
+        "advanced_user_prompt",
+        "advanced_assistant_prefill",
+        "advanced_response_marker",
+    ):
+        overrides.pop(k, None)
+
+    return replace(
+        cfg,
+        system_prompt=None,
+        first_step_system_prompt=None,
+        second_step_system_prompt=None,
+        advanced_user_prompt=user_prompt,
+        advanced_assistant_prefill=assistant_prefill,
+        advanced_response_marker=response_marker,
+        **overrides,
+    )
+
+
 def dump_config(cfg: Any, path: str | Path) -> None:
     """Write a config out as YAML next to a checkpoint / results file."""
     p = Path(path)
@@ -318,5 +412,6 @@ __all__ = [
     "dump_config",
     "replace",
     "replace_two_step",
+    "replace_two_step_advanced",
     "DEFAULT_LORA_TARGET_MODULES",
 ]
