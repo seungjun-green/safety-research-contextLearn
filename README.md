@@ -1,6 +1,6 @@
 # Long-Context Jailbreak Robustness
 
-> 📄 For a detailed technical write-up, see [Medium]([https://medium.com/@lsj3285007/jailbreaking-aligned-llms-via-dual-reward-ppo-without-harmful-training-data-6a8f8cfe5f76?postPublishedType=repub](https://medium.com/@lsj3285007/defending-many-shot-jailbreaks-with-forced-self-evaluation-an-instruction-position-effect-861da47d8121?postPublishedType=initial).
+> 📄 For a detailed technical write-up, see [Medium](https://medium.com/@lsj3285007/defending-many-shot-jailbreaks-with-forced-self-evaluation-an-instruction-position-effect-861da47d8121?postPublishedType=initial)
 > 
 A research codebase for studying whether **long-context fine-tuning** improves an open-source LLM's robustness to **many-shot jailbreak** attacks.
 
